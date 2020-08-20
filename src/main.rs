@@ -4,11 +4,9 @@ extern crate clap;
 use std::collections::HashMap;
 use std::fs::{create_dir_all, File};
 
-use chrono::{DateTime, Utc, NaiveDateTime};
-use dirs::{config_dir, cache_dir};
+use chrono::{DateTime, NaiveDateTime, Utc};
+use dirs::{cache_dir, config_dir};
 use reqwest::blocking::Client;
-use reqwest::blocking::multipart::Form;
-use reqwest::get;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, PartialEq, Debug, Default, Serialize, Deserialize)]
@@ -71,7 +69,7 @@ impl Profile {
 
         let mut cache_filename = cache_dir.clone();
         cache_filename.push("cache.json");
-        let mut cache_file = match File::open(cache_filename.as_path()) {
+        let cache_file = match File::open(cache_filename.as_path()) {
             Ok(f) => f,
             Err(_) => {
                 return HashMap::new();
@@ -80,7 +78,7 @@ impl Profile {
 
         match serde_json::from_reader(cache_file) {
             Ok(x) => x,
-            Err(e) => {
+            Err(_) => {
                 HashMap::new()
             }
         }
@@ -93,7 +91,7 @@ impl Profile {
         }
     }
 
-    fn save_cache(&self, mut cache: HashMap<String, Token>) {
+    fn save_cache(&self, cache: HashMap<String, Token>) {
         let mut cache_dir = cache_dir().unwrap();
         cache_dir.push("tokengen");
         match create_dir_all(cache_dir.as_path()) {
@@ -105,7 +103,7 @@ impl Profile {
 
         let mut cache_filename = cache_dir.clone();
         cache_filename.push("cache.json");
-        let mut cache_file = match File::create(cache_filename.as_path()) {
+        let cache_file = match File::create(cache_filename.as_path()) {
             Ok(f) => f,
             Err(_) => {
                 eprintln!("WARNING: Unable to create cache file.");
@@ -185,7 +183,7 @@ impl Configuration {
 
         let mut config_filename = config_dir.clone();
         config_filename.push("config.json");
-        let mut config_file = match File::open(config_filename.as_path()) {
+        let config_file = match File::open(config_filename.as_path()) {
             Ok(f) => f,
             Err(_) => {
                 return Configuration::new();

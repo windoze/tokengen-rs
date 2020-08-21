@@ -311,6 +311,7 @@ fn main() {
     if !profile.is_valid() {
         eprintln!("ERROR: Missing command line arguments.\n");
         app.print_help().unwrap();
+        println!();
         exit(1)
     }
     let token = profile.get_token();

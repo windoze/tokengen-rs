@@ -64,6 +64,13 @@ impl Profile {
         }
     }
 
+    fn is_valid(&self) -> bool {
+        !(self.client_id.is_empty()
+            || self.secret.is_empty()
+            || self.tenant.is_empty()
+            || self.authority.is_empty())
+    }
+
     fn get_key(&self) -> String {
         format!("{}\t{}\t{}\t{}", self.client_id, self.tenant, self.authority, self.resource)
     }
@@ -271,7 +278,7 @@ impl Configuration {
 }
 
 fn main() {
-    let matches = clap_app!(tokengen =>
+    let mut app = clap_app!(tokengen =>
         (version: "0.1")
         (author: "Chen Xu <windoze@0d0a.com>")
         (about: "Generate AzureAD token.")
@@ -282,7 +289,8 @@ fn main() {
         (@arg AUTHORITY: -a --authority +takes_value "Authority")
         (@arg RESOURCE: -r --resource +takes_value "Resource")
         (@arg FORMAT: -f --format +takes_value "Format, can be 'header' or 'raw'")
-    ).get_matches();
+    );
+    let matches = app.clone().get_matches();
 
     let profile = matches.value_of("PROFILE").unwrap_or_default();
     let client_id = matches.value_of("CLIENT_ID").unwrap_or_default();
@@ -300,6 +308,11 @@ fn main() {
                                   authority,
                                   resource,
     );
+    if !profile.is_valid() {
+        eprintln!("ERROR: Missing command line arguments.\n");
+        app.print_help().unwrap();
+        exit(1)
+    }
     let token = profile.get_token();
     if format.starts_with("h") {
         print!("Authorization: Bearer {}", token.access_token);

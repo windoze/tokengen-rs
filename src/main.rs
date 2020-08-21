@@ -8,6 +8,7 @@ use chrono::{DateTime, NaiveDateTime, Utc};
 use dirs::{cache_dir, config_dir};
 use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
+use std::process::exit;
 
 #[derive(Clone, PartialEq, Debug, Default, Serialize, Deserialize)]
 #[serde(default)]
@@ -138,12 +139,12 @@ impl Profile {
             Ok(r) => r,
             Err(e) => {
                 eprintln!("ERROR: Request failed, error is {:#?}", e);
-                panic!()
+                exit(1);
             }
         };
         if !resp.status().is_success() {
             eprintln!("ERROR: Request failed, status is {}", resp.status());
-            panic!()
+            exit(i32::from(resp.status().as_u16()))
         }
         let token: Token = resp.json().unwrap();
 
@@ -248,8 +249,8 @@ fn main() {
     );
     let token = profile.get_token();
     if format == "header" {
-        println!("Authorization: Bearer {}", token.access_token);
+        print!("Authorization: Bearer {}", token.access_token);
     } else if format == "raw" {
-        println!("{}", token.access_token);
+        print!("{}", token.access_token);
     }
 }

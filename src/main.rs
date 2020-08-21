@@ -37,9 +37,13 @@ impl Token {
 #[serde(rename_all = "PascalCase")]
 struct Profile {
     name: String,
+    #[serde(default)]
     client_id: String,
+    #[serde(default)]
     secret: String,
+    #[serde(default)]
     tenant: String,
+    #[serde(default)]
     authority: String,
     resource: String,
 }
@@ -172,19 +176,25 @@ impl Profile {
     }
 }
 
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 struct Configuration {
+    #[serde(default)]
     default_profile: String,
+    #[serde(default)]
+    default_client_id: String,
+    #[serde(default)]
+    default_secret: String,
+    #[serde(default)]
+    default_tenant: String,
+    #[serde(default)]
+    default_authority: String,
     profiles: Vec<Profile>,
 }
 
 impl Configuration {
     fn new() -> Self {
-        Configuration {
-            default_profile: "".to_string(),
-            profiles: vec![],
-        }
+        Self::default()
     }
 
     fn load() -> Self {
@@ -207,13 +217,23 @@ impl Configuration {
             }
         };
 
-        match serde_json::from_reader(config_file) {
-            Ok(v) => v,
+        let mut ret = match serde_json::from_reader(config_file) {
+            Ok(v) => {
+                v
+            }
             Err(e) => {
                 eprintln!("WARNING: Unable to load configuration file at '{}', error is {:#?}.", config_filename.to_string_lossy(), e);
                 Self::new()
             }
+        };
+        if ret.default_profile.is_empty() {
+            ret.default_profile = String::from("DEFAULT")
         }
+        if ret.default_authority.is_empty() {
+            ret.default_authority = String::from("https://login.microsoftonline.com")
+        }
+
+        ret
     }
 
     fn get_profile(&self,
@@ -227,15 +247,26 @@ impl Configuration {
         for p in &self.profiles {
             if p.name == name {
                 let mut ret = p.clone();
+
                 if !client_id.is_empty() { ret.client_id = client_id.to_string(); }
                 if !secret.is_empty() { ret.secret = secret.to_string(); }
                 if !tenant.is_empty() { ret.tenant = tenant.to_string(); }
                 if !authority.is_empty() { ret.authority = authority.to_string(); }
                 if !resource.is_empty() { ret.resource = resource.to_string(); }
+
+                if ret.client_id.is_empty() { ret.client_id = self.default_client_id.clone(); }
+                if ret.secret.is_empty() { ret.secret = self.default_secret.clone(); }
+                if ret.tenant.is_empty() { ret.tenant = self.default_tenant.clone(); }
+                if ret.authority.is_empty() { ret.authority = self.default_authority.clone(); }
+
                 return ret;
             }
         }
-        Profile::new(client_id, secret, tenant, authority, resource)
+        Profile::new(if client_id.is_empty() { &self.default_client_id } else { client_id },
+                     if secret.is_empty() { &self.default_secret } else { secret },
+                     if tenant.is_empty() { &self.default_tenant } else { tenant },
+                     if authority.is_empty() { &self.default_authority } else { authority },
+                     resource)
     }
 }
 

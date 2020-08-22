@@ -18,7 +18,7 @@ pub struct UserToken {
     access_token: String,
     refresh_token: String,
     expires_in: i64,
-    expires_on: i64
+    expires_on: i64,
 }
 
 impl AADToken for UserToken {
@@ -27,13 +27,11 @@ impl AADToken for UserToken {
     }
 
     fn get_token(&self) -> String {
-        // if self.access_token.is_empty()
-        // {
-        //     self.id_token.clone()
-        // } else {
-        //     self.id_token.clone()
-        // }
-        self.id_token.clone()
+        if self.access_token.is_empty() {
+            self.id_token.clone()
+        } else {
+            self.access_token.clone()
+        }
     }
 }
 
@@ -88,8 +86,7 @@ impl UserProfile {
         let mut form: HashMap<&str, &str> = HashMap::new();
         form.insert("grant_type", "urn:ietf:params:oauth:grant-type:device_code");
         form.insert("client_id", &self.client_id);
-        // NOTE: Doc says this field is "device_code", but it should be "code"
-        form.insert("code", &dcresp.device_code);
+        form.insert("device_code", &dcresp.device_code);
 
         let mut ctx: ClipboardContext = ClipboardProvider::new().unwrap();
         ctx.set_contents(dcresp.user_code).unwrap();
@@ -113,6 +110,30 @@ impl UserProfile {
 
         eprintln!("ERROR: Failed to get code.");
         exit(2);
+    }
+
+    pub fn refresh_token(&self, token: &UserToken) -> Option<UserToken> {
+        // https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-auth-code-flow#refresh-the-access-token
+        let url = format!("{}/{}/oauth2/v2.0/token", self.authority, self.tenant);
+
+        let mut form: HashMap<&str, &str> = HashMap::new();
+        form.insert("client_id", &self.client_id);
+        form.insert("scope", &self.scope);
+        form.insert("refresh_token", &token.refresh_token);
+        form.insert("grant_type", "refresh_token");
+
+        let resp = send_request(&url, &form, false);
+
+        let mut token: UserToken = match resp.json() {
+            Ok(v) => v,
+            Err(e) => {
+                eprintln!("WARNING: Failed to refresh token, error is {:#?}.", e);
+                return None;
+            }
+        };
+
+        token.expires_on = Utc::now().timestamp() + token.expires_in - 5;   // Some seconds passed
+        Some(token)
     }
 
     pub fn is_valid(&self) -> bool {

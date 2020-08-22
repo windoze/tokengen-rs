@@ -136,7 +136,7 @@ fn main() {
     let tenant = matches.value_of("TENANT").unwrap_or_default();
     let authority = matches.value_of("AUTHORITY").unwrap_or_default();
     let resource = matches.value_of("RESOURCE").unwrap_or_default();
-    let scope = matches.value_of("SCOPE").unwrap_or("openid profile");
+    let scope = matches.value_of("SCOPE").unwrap_or_default();
     let format = matches.value_of("FORMAT").unwrap_or("header");
 
     let cfg = Configuration::load();

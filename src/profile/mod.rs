@@ -35,7 +35,7 @@ fn send_request(url: &str, form: &HashMap<&str, &str>, ignore_error: bool) -> Re
 fn is_expired(expires_on: i64) -> bool {
     let exp = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(expires_on, 0), Utc);
     let duration = exp.signed_duration_since(Utc::now());
-    duration.num_minutes() < 5
+    duration.num_minutes() < 1
 }
 
 pub trait AADToken {
@@ -163,11 +163,31 @@ impl Profile {
         }
     }
 
+    pub fn refresh_token(&self, token: &Token) -> Option<Token> {
+        match self {
+            Profile::App(_) => None,
+            Profile::User(p) => match token {
+                Token::User(t) => p.refresh_token(t).map(|t| Token::User(t)),
+                Token::App(_) => None
+            }
+        }
+    }
+
     pub fn get_token(&self) -> Token {
         let mut cache = Profile::load_cache();
 
-        match cache.get(&self.get_key()).filter(|t| !t.is_expired()) {
-            Some(t) => return t.clone(),
+        match cache.get(&self.get_key()) {
+            Some(t) => {
+                if t.is_expired() {
+                    match self.refresh_token(t) {
+                        Some(t) => {
+                            cache.insert(self.get_key(), t.clone());
+                            return t.clone();
+                        }
+                        None => ()
+                    }
+                }
+            }
             None => ()
         }
 
@@ -239,7 +259,7 @@ impl Profile {
                     client_id: if p.client_id.is_empty() { client_id.to_string() } else { p.client_id.to_owned() },
                     tenant: if p.tenant.is_empty() { tenant.to_string() } else { p.tenant.to_owned() },
                     authority: if p.authority.is_empty() { authority.to_string() } else { p.authority.to_owned() },
-                    scope: p.scope.to_owned()
+                    scope: p.scope.to_owned(),
                 })
             }
         }

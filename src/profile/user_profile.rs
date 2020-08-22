@@ -27,11 +27,13 @@ impl AADToken for UserToken {
     }
 
     fn get_token(&self) -> String {
-        if self.access_token.is_empty() {
-            self.id_token.clone()
-        } else {
-            self.access_token.clone()
-        }
+        // TODO: Command line option to use id_token or access_token
+        // if self.access_token.is_empty() {
+        //     self.id_token.clone()
+        // } else {
+        //     self.access_token.clone()
+        // }
+        self.id_token.clone()
     }
 }
 

@@ -182,6 +182,7 @@ impl Profile {
                     match self.refresh_token(t) {
                         Some(t) => {
                             cache.insert(self.get_key(), t.clone());
+                            Profile::save_cache(cache);
                             return t.clone();
                         }
                         None => ()

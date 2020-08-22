@@ -181,12 +181,17 @@ impl Profile {
                 if t.is_expired() {
                     match self.refresh_token(t) {
                         Some(t) => {
+                            // Refreshed
                             cache.insert(self.get_key(), t.clone());
                             Profile::save_cache(cache);
                             return t.clone();
                         }
+                        // Failed to refresh
                         None => ()
                     }
+                } else {
+                    // Not expired
+                    return t.clone();
                 }
             }
             None => ()

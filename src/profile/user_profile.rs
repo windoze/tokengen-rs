@@ -62,6 +62,8 @@ struct DevCodeResp {
 
 impl UserProfile {
     pub fn get_token(&self) -> UserToken {
+        // TODO: Support secret client, now this program supports public client only
+        
         // https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-device-code
         let url = format!("{}/{}/oauth2/v2.0/devicecode", self.authority, self.tenant);
 
@@ -102,11 +104,14 @@ impl UserProfile {
             if token.error.is_empty() {
                 token.expires_on = Utc::now().timestamp() + token.expires_in - 5;   // Some seconds passed
                 return token;
+            } else if token.error != "authorization_pending" {
+                eprintln!("ERROR: Failed to get token, error is {:#?}.", token.error);
+                exit(2);
             }
             thread::sleep(time::Duration::from_secs(dcresp.interval));
         }
 
-        eprintln!("ERROR: Failed to get code.");
+        eprintln!("ERROR: Failed to get token, time out.");
         exit(2);
     }
 

@@ -3,7 +3,7 @@ use std::process::exit;
 
 use serde::{Deserialize, Serialize};
 
-use crate::profile::{AADToken, send_request, is_expired};
+use crate::profile::{AADToken, is_expired, send_request, TokenType};
 
 #[derive(Clone, PartialEq, Debug, Default, Serialize, Deserialize)]
 #[serde(default)]
@@ -24,8 +24,13 @@ impl AADToken for AppToken {
         }
     }
 
-    fn get_token(&self) -> String {
-        self.access_token.clone()
+    fn get_token_string(&self, token_type: TokenType) -> String {
+        match token_type {
+            TokenType::Access => &self.access_token,
+            TokenType::Id => &self.id_token,
+            TokenType::AccessOrId => (if self.access_token.is_empty() { &self.id_token } else { &self.access_token }),
+            TokenType::IdOrAccess => (if self.id_token.is_empty() { &self.access_token } else { &self.id_token }),
+        }.clone()
     }
 }
 

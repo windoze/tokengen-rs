@@ -1,13 +1,13 @@
-use std::collections::HashMap;
 use std::{thread, time};
-
-use serde::{Deserialize, Serialize};
-
+use std::collections::HashMap;
 use std::process::exit;
-use crate::profile::{send_request, AADToken, is_expired};
-use clipboard::{ClipboardContext, ClipboardProvider};
-use webbrowser::{open_browser, Browser};
+
 use chrono::Utc;
+use clipboard::{ClipboardContext, ClipboardProvider};
+use serde::{Deserialize, Serialize};
+use webbrowser::{Browser, open_browser};
+
+use crate::profile::{AADToken, is_expired, send_request, TokenType};
 
 #[derive(Clone, PartialEq, Debug, Default, Serialize, Deserialize)]
 #[serde(default)]
@@ -26,14 +26,13 @@ impl AADToken for UserToken {
         is_expired(self.expires_on)
     }
 
-    fn get_token(&self) -> String {
-        // TODO: Command line option to use id_token or access_token
-        // if self.access_token.is_empty() {
-        //     self.id_token.clone()
-        // } else {
-        //     self.access_token.clone()
-        // }
-        self.id_token.clone()
+    fn get_token_string(&self, token_type: TokenType) -> String {
+        match token_type {
+            TokenType::Access => &self.access_token,
+            TokenType::Id => &self.id_token,
+            TokenType::AccessOrId => (if self.access_token.is_empty() { &self.id_token } else { &self.access_token }),
+            TokenType::IdOrAccess => (if self.id_token.is_empty() { &self.access_token } else { &self.id_token }),
+        }.clone()
     }
 }
 

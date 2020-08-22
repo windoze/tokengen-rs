@@ -40,13 +40,21 @@ fn is_expired(expires_on: i64) -> bool {
 
 pub trait AADToken {
     fn is_expired(&self) -> bool;
-    fn get_token(&self) -> String;
+    fn get_token_string(&self, token_type: TokenType) -> String;
 }
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum Token {
     App(AppToken),
     User(UserToken),
+}
+
+#[derive(Copy, Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub enum TokenType {
+    Access,
+    Id,
+    AccessOrId,
+    IdOrAccess,
 }
 
 impl Default for Token {
@@ -63,10 +71,10 @@ impl AADToken for Token {
         }
     }
 
-    fn get_token(&self) -> String {
+    fn get_token_string(&self, token_type: TokenType) -> String {
         match self {
-            Token::User(t) => t.get_token(),
-            Token::App(t) => t.get_token()
+            Token::User(t) => t.get_token_string(token_type),
+            Token::App(t) => t.get_token_string(token_type)
         }
     }
 }
@@ -179,9 +187,10 @@ impl Profile {
         match cache.get(&self.get_key()) {
             Some(t) => {
                 if t.is_expired() {
+                    // Try to refresh this token
                     match self.refresh_token(t) {
                         Some(t) => {
-                            // Refreshed
+                            // Refreshed, save and return
                             cache.insert(self.get_key(), t.clone());
                             Profile::save_cache(cache);
                             return t.clone();
@@ -194,6 +203,7 @@ impl Profile {
                     return t.clone();
                 }
             }
+            // Not found in cache
             None => ()
         }
 
@@ -202,13 +212,13 @@ impl Profile {
             Profile::User(p) => Token::User(p.get_token())
         };
 
+        // Save and return
         cache.insert(self.get_key(), token.clone());
-
         Profile::save_cache(cache);
-
         token
     }
 
+    // Override this profile
     pub fn with_overrides(
         &self,
         client_id: &str,
@@ -222,50 +232,52 @@ impl Profile {
             Profile::App(p) => {
                 Profile::App(AppProfile {
                     name: p.name.to_owned(),
-                    client_id: if client_id.is_empty() { p.client_id.to_owned() } else { client_id.to_string() },
-                    secret: if secret.is_empty() { p.secret.to_owned() } else { secret.to_string() },
-                    tenant: if tenant.is_empty() { p.tenant.to_owned() } else { tenant.to_string() },
-                    authority: if authority.is_empty() { p.authority.to_owned() } else { authority.to_string() },
-                    resource: if resource.is_empty() { p.resource.to_owned() } else { resource.to_string() },
+                    client_id: if client_id.is_empty() { p.client_id.to_owned() } else { client_id.to_owned() },
+                    secret: if secret.is_empty() { p.secret.to_owned() } else { secret.to_owned() },
+                    tenant: if tenant.is_empty() { p.tenant.to_owned() } else { tenant.to_owned() },
+                    authority: if authority.is_empty() { p.authority.to_owned() } else { authority.to_owned() },
+                    resource: if resource.is_empty() { p.resource.to_owned() } else { resource.to_owned() },
                 })
             }
             Profile::User(p) => {
                 Profile::User(UserProfile {
                     name: p.name.to_owned(),
-                    client_id: if client_id.is_empty() { p.client_id.to_owned() } else { client_id.to_string() },
-                    tenant: if tenant.is_empty() { p.tenant.to_owned() } else { tenant.to_string() },
-                    authority: if authority.is_empty() { p.authority.to_owned() } else { authority.to_string() },
-                    scope: if scope.is_empty() { p.scope.to_owned() } else { scope.to_string() },
+                    client_id: if client_id.is_empty() { p.client_id.to_owned() } else { client_id.to_owned() },
+                    tenant: if tenant.is_empty() { p.tenant.to_owned() } else { tenant.to_owned() },
+                    authority: if authority.is_empty() { p.authority.to_owned() } else { authority.to_owned() },
+                    scope: if scope.is_empty() { p.scope.to_owned() } else { scope.to_owned() },
                 })
             }
         }
     }
 
+    // Fill missing fields with defaults
     pub fn with_defaults(
         &self,
         client_id: &str,
         secret: &str,
         tenant: &str,
         authority: &str,
+        scope: &str,
     ) -> Profile {
         match self {
             Profile::App(p) => {
                 Profile::App(AppProfile {
                     name: p.name.to_owned(),
-                    client_id: if p.client_id.is_empty() { client_id.to_string() } else { p.client_id.to_owned() },
-                    secret: if p.secret.is_empty() { secret.to_string() } else { p.secret.to_owned() },
-                    tenant: if p.tenant.is_empty() { tenant.to_string() } else { p.tenant.to_owned() },
-                    authority: if p.authority.is_empty() { authority.to_string() } else { p.authority.to_owned() },
+                    client_id: if p.client_id.is_empty() { client_id.to_owned() } else { p.client_id.to_owned() },
+                    secret: if p.secret.is_empty() { secret.to_owned() } else { p.secret.to_owned() },
+                    tenant: if p.tenant.is_empty() { tenant.to_owned() } else { p.tenant.to_owned() },
+                    authority: if p.authority.is_empty() { authority.to_owned() } else { p.authority.to_owned() },
                     resource: p.resource.to_owned(),
                 })
             }
             Profile::User(p) => {
                 Profile::User(UserProfile {
                     name: p.name.to_owned(),
-                    client_id: if p.client_id.is_empty() { client_id.to_string() } else { p.client_id.to_owned() },
-                    tenant: if p.tenant.is_empty() { tenant.to_string() } else { p.tenant.to_owned() },
-                    authority: if p.authority.is_empty() { authority.to_string() } else { p.authority.to_owned() },
-                    scope: p.scope.to_owned(),
+                    client_id: if p.client_id.is_empty() { client_id.to_owned() } else { p.client_id.to_owned() },
+                    tenant: if p.tenant.is_empty() { tenant.to_owned() } else { p.tenant.to_owned() },
+                    authority: if p.authority.is_empty() { authority.to_owned() } else { p.authority.to_owned() },
+                    scope: if p.scope.is_empty() { scope.to_owned() } else { p.scope.to_owned() },
                 })
             }
         }

@@ -62,9 +62,6 @@ struct DevCodeResp {
 
 impl UserProfile {
     pub fn get_token(&self) -> UserToken {
-        // TODO: Refresh token silently
-
-        // Refer to:
         // https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-device-code
         let url = format!("{}/{}/oauth2/v2.0/devicecode", self.authority, self.tenant);
 

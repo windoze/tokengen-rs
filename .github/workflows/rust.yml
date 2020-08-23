@@ -7,8 +7,8 @@ on:
 name: Upload Release Asset
 
 jobs:
-  build:
-    name: Upload Release Asset
+  build-linux:
+    name: Upload Linux Release Asset
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -17,7 +17,7 @@ jobs:
         run: |
           sudo apt-get install -y libssl-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
           cargo build --release
-          zip --junk-paths release target/release/tokengen README.md
+          zip --junk-paths linux target/release/tokengen README.md
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
@@ -35,6 +35,66 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
-          asset_path: ./release.zip
-          asset_name: release.zip
+          asset_path: ./linux.zip
+          asset_name: linux.zip
+          asset_content_type: application/zip
+  build-macos:
+    name: Upload macOS Release Asset
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Build project
+        run: |
+          cargo build --release
+          zip --junk-paths macos target/release/tokengen README.md
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+      - name: Upload Release Asset
+        id: upload-release-asset 
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
+          asset_path: ./macos.zip
+          asset_name: macos.zip
+          asset_content_type: application/zip
+  build-windows:
+    name: Upload Windows Release Asset
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Build project
+        run: |
+          cargo build --release
+          zip --junk-paths windows target/release/tokengen README.md
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+      - name: Upload Release Asset
+        id: upload-release-asset 
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
+          asset_path: ./windows.zip
+          asset_name: windows.zip
           asset_content_type: application/zip

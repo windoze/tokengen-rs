@@ -1,0 +1,82 @@
+on:
+  push:
+    # Sequence of patterns matched against refs/tags
+    tags:
+      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+
+name: Upload Release Asset
+
+jobs:
+  create_release:
+    name: Create release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    steps:
+      - name: Create release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+
+  build_release:
+    name: Build release
+    needs: create_release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            zip_name: linux-x86_64
+          - os: macos-latest
+            zip_name: macos-x86_64
+          - os: windows-latest
+            zip_name: win-x86_64
+    steps:
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Install Linux dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get update && sudo apt-get install libssl-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
+
+      - name: Install macOS dependencies
+        if: matrix.os == 'macOS-latest'
+        run: echo
+
+      - name: Install Windows dependencies
+        if: matrix.os == 'windows-latest'
+        run: |
+          choco install zip
+
+      - name: Build
+        shell: bash
+        run: cargo build --release
+
+      - name: Compress Non-Windows
+        if: matrix.os != 'windows-latest'
+        shell: bash
+        run: |
+          zip --junk-paths ${{ matrix.zip_name }}.zip target/release/tokengen README.md
+
+      - name: Compress Windows
+        if: matrix.os == 'windows-latest'
+        shell: cmd
+        run: |
+          zip --junk-paths ${{ matrix.zip_name }}.zip target/release/tokengen.exe README.md
+
+      - name: Upload
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: ${{ matrix.zip_name }}.zip
+          asset_name: ${{ matrix.zip_name }}.zip
+          asset_content_type: application/zip
+

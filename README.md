@@ -5,19 +5,29 @@ AzureAD Token Generator
 
 Tool to generate AzureAD authentication tokens.
 
-With everything configured, it can be used like:
+With everything configured, the tool will print the AzureAD auth token to the output, can be used with other tools like:
 ```
 curl -H "$(tokengen -p SomeProfile)" https://contoso.com/some_resource_requires_a_token
 ```
 
+For `User` type profile, the tool may open the browser to start the device code login flow, and will automatically copy the device code to the clip board, so you just need to paste the code into the input box and continue.
+
+If the tool cannot open the browser for any reason, it will print the login URL and the device code to the output, so you can proceed manually.
+
+For `App` type profile, as the secret is provided from the configuration file or the command line, the whole process should be fully automatic.
+
+The tool will try to cache the acquired token, and will try to automatically refresh or re-acquire the token if it's expired.
+
 Command Line Options:
 ---------------------
 
+* `-e`, `--edit`
+    Open the text editor to edit the configuration file, will not process any other options if this is provided.
 * `-p`, `--profile`
     Select the profile to be used, see Configuration File
 * `-f`, `--format`
     Output format, can be:
-    + `h` CURL header format, i.e. "Authorization: Bearer XXXXX>"
+    + `h` CURL header format, i.e. "Authorization: Bearer XXXXX"
     + `r` Raw format, just token string
 * `-y`, `--type`
     Profile type, could be `App` or `User`
@@ -52,9 +62,15 @@ Configuration file is in JSON format:
     "DefaultScope": "openid profile user.read offline_access",  // Default scope for "User" type profile
     "Profiles": [
         {
-            "Name": "SomeProfile",
+            "Name": "SomeAppProfile",
             "Type": "App",
             "Resource": "http://contoso.com/someresource"
+        },
+        {
+            "Name": "SomeUserProfile",
+            "Type": "User",
+            "ClientId": "XXX",
+            "Scope": "scope1 scope2"  // Do not use default scopes
         }
         // ...
     ]

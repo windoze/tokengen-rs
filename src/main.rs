@@ -8,6 +8,7 @@ use dirs::config_dir;
 use serde::{Deserialize, Serialize};
 
 use crate::profile::{Profile, AADToken, TokenType};
+use edit::edit_file;
 
 mod profile;
 
@@ -115,6 +116,22 @@ impl Configuration {
             Some(p) => p
         }
     }
+
+    fn open_editor() {
+        let mut config_dir = config_dir().unwrap();
+        config_dir.push("tokengen");
+        match create_dir_all(config_dir.as_path()) {
+            Ok(_) => (),
+            Err(e) => {
+                eprintln!("WARNING: Unable to create config directory '{}', error is {:#?}.", config_dir.to_string_lossy(), e);
+                exit(1);
+            }
+        }
+        let mut config_filename = config_dir.clone();
+        config_filename.push("config.json");
+        eprintln!("Opening editor to edit config file at '{}'...", config_filename.to_string_lossy());
+        edit_file(config_filename).unwrap_or_default();
+    }
 }
 
 fn main() {
@@ -132,6 +149,7 @@ fn main() {
         (@arg SCOPE: -o --scope +takes_value "[User] Scope")
         (@arg TOKEN_TYPE: -k --token_type +takes_value "Token Type, can be 'a', 'i', 'ai', or 'ia', default value is 'ia'.")
         (@arg FORMAT: -f --format +takes_value "Format, can be 'header' or 'raw', default value is 'header'.")
+        (@arg EDIT: -e --edit "Open config file in the default editor.")
     );
     let matches = app.clone().get_matches();
 
@@ -155,6 +173,11 @@ fn main() {
             exit(1);
         }
     };
+
+    if matches.is_present("EDIT") {
+        Configuration::open_editor();
+        exit(0);
+    }
 
     let cfg = Configuration::load();
     let profile = cfg.get_profile(

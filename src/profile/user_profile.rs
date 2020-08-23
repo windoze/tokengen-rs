@@ -63,7 +63,7 @@ struct DevCodeResp {
 impl UserProfile {
     pub fn get_token(&self) -> UserToken {
         // TODO: Support secret client, now this program supports public client only
-        
+
         // https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-device-code
         let url = format!("{}/{}/oauth2/v2.0/devicecode", self.authority, self.tenant);
 
@@ -88,9 +88,18 @@ impl UserProfile {
         form.insert("client_id", &self.client_id);
         form.insert("device_code", &dcresp.device_code);
 
-        let mut ctx: ClipboardContext = ClipboardProvider::new().unwrap();
-        ctx.set_contents(dcresp.user_code).unwrap();
-        open_browser(Browser::Default, &dcresp.verification_uri).unwrap();
+        match ClipboardProvider::new().map(|mut ctx: ClipboardContext| {
+            ctx.set_contents(dcresp.user_code.clone())
+        }).map(|_| {
+            open_browser(Browser::Default, &dcresp.verification_uri)
+        }) {
+            Ok(_) => {}
+            Err(_) => {
+                // Failed to set clipboard text or open browser
+                // Fallback to non-GUI method
+                println!("{}", dcresp.message)
+            }
+        }
 
         for _ in 1..=dcresp.expires_in {
             let resp = send_request(&url, &form, true);
@@ -105,7 +114,7 @@ impl UserProfile {
                 token.expires_on = Utc::now().timestamp() + token.expires_in - 5;   // Some seconds passed
                 return token;
             } else if token.error != "authorization_pending" {
-                eprintln!("ERROR: Failed to get token, error is {:#?}.", token.error);
+                eprintln!("ERROR: Failed to get token, error is {}.", token.error);
                 exit(2);
             }
             thread::sleep(time::Duration::from_secs(dcresp.interval));

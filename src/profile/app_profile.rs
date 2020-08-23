@@ -63,13 +63,10 @@ impl AppProfile {
 
         let resp = send_request(&url, &form, false);
 
-        match resp.json() {
-            Ok(v) => v,
-            Err(e) => {
-                eprintln!("ERROR: Failed to decode response, error is {:#?}.", e);
-                exit(2);
-            }
-        }
+        resp.json().map_err(|e| {
+            eprintln!("ERROR: Failed to decode response, error is {:#?}.", e);
+            exit(2);
+        }).unwrap()
     }
 
     pub fn is_valid(&self) -> bool {

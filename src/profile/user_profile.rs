@@ -73,13 +73,10 @@ impl UserProfile {
 
         let resp = send_request(&url, &form, false);
 
-        let dcresp: DevCodeResp = match resp.json() {
-            Ok(v) => v,
-            Err(e) => {
-                eprintln!("ERROR: Failed to decode response, error is {:#?}.", e);
-                exit(2);
-            }
-        };
+        let dcresp: DevCodeResp = resp.json().map_err(|e| {
+            eprintln!("ERROR: Failed to decode response, error is {:#?}.", e);
+            exit(2)
+        }).unwrap();
 
         let url = format!("{}/{}/oauth2/v2.0/token", self.authority, self.tenant);
 
@@ -88,28 +85,20 @@ impl UserProfile {
         form.insert("client_id", &self.client_id);
         form.insert("device_code", &dcresp.device_code);
 
-        match ClipboardProvider::new().map(|mut ctx: ClipboardContext| {
+        ClipboardProvider::new().map(|mut ctx: ClipboardContext| {
             ctx.set_contents(dcresp.user_code.clone())
         }).map(|_| {
             open_browser(Browser::Default, &dcresp.verification_uri)
-        }) {
-            Ok(_) => {}
-            Err(_) => {
-                // Failed to set clipboard text or open browser
-                // Fallback to non-GUI method
-                println!("{}", dcresp.message)
-            }
-        }
+        }).map(|_| ()).unwrap_or(
+            println!("{}", dcresp.message)
+        );
 
         for _ in 1..=dcresp.expires_in {
             let resp = send_request(&url, &form, true);
-            let mut token: UserToken = match resp.json() {
-                Ok(v) => v,
-                Err(e) => {
-                    eprintln!("ERROR: Failed to decode response, error is {:#?}.", e);
-                    exit(2);
-                }
-            };
+            let mut token: UserToken = resp.json().map_err(|e| {
+                eprintln!("ERROR: Failed to decode response, error is {:#?}.", e);
+                exit(2);
+            }).unwrap();
             if token.error.is_empty() {
                 token.expires_on = Utc::now().timestamp() + token.expires_in - 5;   // Some seconds passed
                 return token;

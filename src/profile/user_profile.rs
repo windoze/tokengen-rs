@@ -90,7 +90,7 @@ impl UserProfile {
         }).map(|_| {
             open_browser(Browser::Default, &dcresp.verification_uri)
         }).map(|_| ()).unwrap_or(
-            println!("{}", dcresp.message)
+            eprintln!("{}", dcresp.message)
         );
 
         for _ in 1..=dcresp.expires_in {

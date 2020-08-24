@@ -3,8 +3,10 @@ use std::collections::HashMap;
 use std::process::exit;
 
 use chrono::Utc;
+#[cfg(not(feature = "nogui"))]
 use clipboard::{ClipboardContext, ClipboardProvider};
 use serde::{Deserialize, Serialize};
+#[cfg(not(feature = "nogui"))]
 use webbrowser::{Browser, open_browser};
 
 use crate::profile::{AADToken, is_expired, send_request, TokenType};
@@ -60,6 +62,22 @@ struct DevCodeResp {
     message: String,
 }
 
+#[cfg(feature = "nogui")]
+fn device_code_login(dcresp: &DevCodeResp) {
+    eprintln!("{}", dcresp.message)
+}
+
+#[cfg(not(feature = "nogui"))]
+fn device_code_login(dcresp: &DevCodeResp) {
+    ClipboardProvider::new().map(|mut ctx: ClipboardContext| {
+        ctx.set_contents(dcresp.user_code.clone())
+    }).map(|_| {
+        open_browser(Browser::Default, &dcresp.verification_uri)
+    }).map(|_| ()).unwrap_or(
+        eprintln!("{}", dcresp.message)
+    );
+}
+
 impl UserProfile {
     pub fn get_token(&self) -> UserToken {
         // TODO: Support secret client, now this program supports public client only
@@ -85,13 +103,7 @@ impl UserProfile {
         form.insert("client_id", &self.client_id);
         form.insert("device_code", &dcresp.device_code);
 
-        ClipboardProvider::new().map(|mut ctx: ClipboardContext| {
-            ctx.set_contents(dcresp.user_code.clone())
-        }).map(|_| {
-            open_browser(Browser::Default, &dcresp.verification_uri)
-        }).map(|_| ()).unwrap_or(
-            eprintln!("{}", dcresp.message)
-        );
+        device_code_login(&dcresp);
 
         for _ in 1..=dcresp.expires_in {
             let resp = send_request(&url, &form, true);

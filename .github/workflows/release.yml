@@ -52,7 +52,7 @@ jobs:
           CC="musl-gcc -fPIE -pie" ./Configure no-shared no-async --prefix=/musl --openssldir=/musl/ssl linux-x86_64 no-shared no-async no-engine -DOPENSSL_NO_SECURE_MEMORY
           make depend
           make -j$(nproc)
-          make install_sw
+          sudo make install_sw
 
       - name: Install macOS dependencies
         if: matrix.os == 'macOS-latest'
